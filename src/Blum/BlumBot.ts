@@ -10,7 +10,12 @@ import {
 } from "../const";
 import { log } from "../log";
 import { getRandomInt, loadReferral, sleep } from "./utils";
-import { createTonWallet, ProofData, readyProof, saveWallet } from "./wallet";
+import {
+  createTonWallet,
+  createWalletProof,
+  saveWallet,
+  WalletProof,
+} from "./wallet";
 import config from "../../config.json";
 
 const reff = loadReferral();
@@ -347,7 +352,7 @@ export default class BlumBot {
     try {
       const request = await axios.post(
         BLUM_GAME_DOMAIN + "/api/v1/game/claim",
-        { gameId, points: Math.floor(Math.random() * (270 - 160 + 1)) + 160 },
+        { gameId, points: Math.floor(Math.random() * (250 - 180 + 1)) + 180 },
         {
           headers: this._getHeaders(),
         }
@@ -361,7 +366,7 @@ export default class BlumBot {
           error?.response?.data?.message.toLowerCase() ==
           "game session not finished"
         ) {
-          await sleep(30000);
+          await sleep(60000);
           return await this._claimGame(gameId);
         }
         if (this._isTokenValid(error?.response?.data?.message)) {
@@ -445,7 +450,7 @@ export default class BlumBot {
     let response: any = undefined;
     try {
       const request = await axios.post(
-        BLUM_GAME_DOMAIN + "/api/v1/tasks/" + id + "/validate",
+        BLUM_EARN_DOMAIN + "/api/v1/tasks/" + id + "/validate",
         { keyword },
         {
           headers: this._getHeaders(),
@@ -463,7 +468,7 @@ export default class BlumBot {
       if (error.response?.data) {
         if (this._isTokenValid(error?.response?.data?.message)) {
           await this._errorHandler("", true);
-          return await this._claimTask({ id, title });
+          return await this._verifyTask({ id, title });
         }
         await this._errorHandler(
           error?.response?.data?.message ?? error.response?.data,
@@ -723,6 +728,23 @@ export default class BlumBot {
       }
     }
   };
+  disconnect = async () => {
+    try {
+      await sleep(getRandomInt(500, 2000));
+      if (!this.token) await this._init();
+      const wallet = await this._getWallet();
+      if (wallet?.message == "wallet is not connected") {
+        log(`[${this.username}]`, "Wallet is not connected");
+        return;
+      }
+      const disconnectResponse = await this._disconnectWallet();
+      if (disconnectResponse) {
+        log("warning", `[${this.username}]`, "Wallet disconnected");
+      } else {
+        log("danger", `[${this.username}]`, "Failed disconnecting wallet");
+      }
+    } catch (err) {}
+  };
   run = async (safe = false) => {
     try {
       if (!safe) await sleep(getRandomInt(500, 2000));
@@ -777,7 +799,7 @@ export default class BlumBot {
       }
     }
   };
-  private _connectWallet = async (i = 0, proofData: ProofData) => {
+  private _connectWallet = async (i = 0, proofData: WalletProof) => {
     let response: any = undefined;
     try {
       const request = await axios.post(
@@ -806,6 +828,20 @@ export default class BlumBot {
       return await this._connectWallet(i++, proofData);
     }
   };
+  private _disconnectWallet = async () => {
+    try {
+      const request = await axios.delete(
+        BLUM_WALLET_DOMAIN + "/api/v1/wallet/disconnect",
+        {
+          headers: this._getHeaders(),
+        }
+      );
+      return true;
+    } catch (err) {
+      log(`danger`, `[${this.username}]`, "Failed to disconnect wallet");
+      return false;
+    }
+  };
   runWallet = async () => {
     const wallet = await this._getWallet();
     if (wallet?.message == "wallet is not connected") {
@@ -815,7 +851,7 @@ export default class BlumBot {
         log(`danger`, `[${this.username}]`, "Failed creating wallet...");
         return;
       }
-      const proof = await readyProof(nwallet.keyPair, nwallet.address);
+      const proof = await createWalletProof(nwallet.keyPair, nwallet.address);
       const connectwallet = await this._connectWallet(undefined, proof);
       if (connectwallet) {
         log(`success`, `[${this.username}]`, "Wallet successfully connected!");
@@ -838,7 +874,7 @@ export default class BlumBot {
             `danger`,
             `[${this.username}]`,
             "Failed save wallet",
-            JSON.stringify(wallet)
+            JSON.stringify(nwallet)
           );
         }
       } else {
@@ -969,7 +1005,7 @@ export default class BlumBot {
                 await sleep(
                   (new Date().getTime() -
                     balance.farming.endTime +
-                    1000 * 60 * 5) *
+                    1000 * 60 * 10) *
                     -1
                 );
               }
@@ -1019,6 +1055,7 @@ export default class BlumBot {
             "38f6dd88-57bd-4b42-8712-286a06dac0a0": "VALUE",
             "6af85c01-f68d-4311-b78a-9cf33ba": "GO GET",
             "d95d3299-e035-4bf6-a7ca-0f71578e9197": "BEST PROJECT EVER",
+            "53044aaf-a51f-4dfc-851a-ae2699a5f729": "HEYBLUM",
           };
           await Promise.all(
             tasks

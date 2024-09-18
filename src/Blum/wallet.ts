@@ -8,7 +8,7 @@ import TonWeb from "tonweb";
 import fs from "node:fs";
 export const saveWallet = (data: any) => {
   try {
-    fs.writeFileSync(
+    fs.appendFileSync(
       "wallet.txt",
       `${data.username}|Mnemonic:${data.mnemonicPhrase}|TonAddress:${data.addressTON}|Address:${data.address}\n`
     );
@@ -34,7 +34,7 @@ export const createTonWallet = async () => {
   return { address, addressTON, keyPair, mnemonicPhrase };
 };
 
-export interface ProofData {
+export interface WalletProof {
   account: {
     address: string;
     chain: string;
@@ -53,10 +53,10 @@ export interface ProofData {
     };
   };
 }
-export const readyProof = async (
+export const createWalletProof = async (
   keyPair: SignKeyPair,
   address: any
-): Promise<ProofData> => {
+): Promise<WalletProof> => {
   const domain = "telegram.blum.codes";
   const payload = Math.floor(Date.now() / 1e3);
   const timestamp = Math.floor(Date.now() / 1e3);
