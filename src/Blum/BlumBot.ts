@@ -533,7 +533,7 @@ export default class BlumBot {
   private _getUserInfo = async () => {
     let response: any = undefined;
     try {
-      const request = await axios.get(BLUM_GATEWAY + "/v1/user/me", {
+      const request = await axios.get(BLUM_GATEWAY + "/api/v1/user/me", {
         headers: this._getHeaders(),
       });
       response = request.data;
